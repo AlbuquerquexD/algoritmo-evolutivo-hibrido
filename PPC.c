@@ -5,7 +5,7 @@
 #include <time.h>
 #include <math.h>
 
-#define TABULEIRO 100 // Número de casas do tabuleiro (NxN)
+#define TABULEIRO 400 // Número de casas do tabuleiro (NxN)
 typedef struct{
 	int fitness; // Tamanho do maior percurso válido
 	int tour[TABULEIRO]; // Percurso do cavalo
@@ -13,41 +13,11 @@ typedef struct{
 }INDIVIDUO;
 
 #define ELITISMO 10
-#define GERACOES 100
-#define POPULACAO 50
+#define GERACOES 1000
+#define POPULACAO 1000
 #define TORNEIO 3
-// #define MUTACAO 15
-
-/*
-* Implementação das Estratégias Evolucionárias (ES)
-* Gera um número aleatório seguindo uma distribuição normal (Gaussiana)
-* com média 0 e desvio padrão 1, utilizando a transformação de Box-Muller.
-* Este é um componente essencial para a mutação das ES, pois permite
-* que as alterações sigam uma "curva de sino", sendo mais provável
-* que ocorram pequenas mudanças do que grandes saltos.
-* Retorno: Um número de ponto flutuante com distribuição normal.
-*/
-double gerarNumeroGaussiano(){ 
-    static bool has_spare = false;
-    static double spare;
-
-    if (has_spare) {
-        has_spare = false;
-        return spare;
-    }
-
-    has_spare = true;
-    double u, v, s;
-    do {
-        u = (rand() / ((double)RAND_MAX)) * 2.0 - 1.0;
-        v = (rand() / ((double)RAND_MAX)) * 2.0 - 1.0;
-        s = u * u + v * v;
-    } while (s >= 1.0 || s == 0.0);
-
-    s = sqrt(-2.0 * log(s) / s);
-    spare = v * s;
-    return u * s;
-}
+#define MUTACAO 15 // vai da lugar para o sigma do tuor
+#define RESETE n // Vai dizer quanto em cada geração nosso sigma vai adotar ... vai ser implementado ainda.
 
 /* Função: escreveRelatorio ... */
 void escreveRelatorio(double tempo, int fitness, int geracao){
@@ -123,12 +93,26 @@ int movimentosPossiveis(int X, int Y) {
 	return contador;
 }
 
+/* Função: regraWarnsdorff
+
+   	Dado um número de casa o seu vizinho válido - com MENOR 
+	número de movimentos possíveis - é calculado.
+
+	Parâmetros:
+		casa - número de casa.
+		visitadas - vetor booleano com número das casas visitadas.
+		
+	Retorno: 
+		Vizinho válido com menor número de movimentos possíveis.
+*/
 int regraWarnsdorff(int casa, bool visitadas[TABULEIRO+1]){
 	int X = 0, Y = 0;
 	coordenadas(casa, &X, &Y);
+	// Define os movimentos possíveis do cavalo
 	int eixoX[] = {2, 1, -1, -2, -2, -1, 1, 2};
 	int eixoY[] = {1, 2, 2, 1, -1, -2, -2, -1};
-	int minMovimentos = 9, valor = 0, valorF = 0;
+	// Inicializado com um valor acima do possível (8).
+	int minMovimentos = 9, valor = 0, valorF = 0; 
 
 	for(int i = 0; i < 8; i++) {
 		int auxX = X + eixoX[i];
@@ -168,7 +152,6 @@ int proximoMovimento(int casa, bool visitadas[TABULEIRO+1]) {
 	return valor;
 }
 
-
 /* Função: fitness ...*/
 INDIVIDUO fitness(INDIVIDUO copia){
 	INDIVIDUO adaptado = copia;
@@ -201,7 +184,6 @@ INDIVIDUO fitness(INDIVIDUO copia){
 	return adaptado;
 }
 
-
 /* Função: vetorMovimentos ...*/
 int vetorMovimentos(int casa) {
 	int X = 0, Y = 0;
@@ -224,42 +206,6 @@ int vetorMovimentos(int casa) {
 	int valor =	movimentos[gerarNumAleatorio(j)];
 
 	return valor;
-}
-
-/*
-* Função: inicializa
-*
-* Inicializa aleatoriamente a POPULAÇÃO de INDIVÍDUOS.
-* O percurso é totalmente embaralhado.
-*
-* Parâmetros:
-* populacao - sequência do tipo INDIVIDUO de tamanho POPULAÇÃO.
-*
-* Retorno:
-* Nulo.
-*/
-void inicializa(INDIVIDUO * populacao){
-	// Preenche o tour de cada indivíduo com valores sequenciais (0 a TABULEIRO-1)
-	for(int i = 0; i < POPULACAO; i++){
-		for(int j = 0; j < TABULEIRO; j++)
-			populacao[i].tour[j] = j; 
-	}
-	
-	// Para cada indivíduo, embaralha o tour e inicializa sua estratégia
-	for(int i = 0; i < POPULACAO; i++){
-		// Embaralha o vetor 'tour' para criar um percurso aleatório
-		for(int j = 0; j < TABULEIRO; j++){
-			int pos = gerarNumAleatorio(TABULEIRO);
-			int temp = populacao[i].tour[j];
-			populacao[i].tour[j] = populacao[i].tour[pos];
-			populacao[i].tour[pos] = temp;
-		}
-
-		populacao[i].sigma = 1.0; // Valor inicial padrão para a estratégia de mutação
-
-		// Calcula o fitness do indivíduo recém-criado
-		populacao[i] = fitness(populacao[i]);	
-	}
 }
 
 /* Função: inicializaCentro ...*/
@@ -287,12 +233,38 @@ void inicializaCentro(INDIVIDUO *populacao)
 	}
 }
 
+/*
+* Implementação das Estratégias Evolucionárias (ES)
+* Gera um número aleatório seguindo uma distribuição normal (Gaussiana)
+* com média 0 e desvio padrão 1, Método polar de Marsaglia
+* Link  referência: https://en.wikipedia.org/wiki/Marsaglia_polar_method
+*/
+double gerarGaussiano(double media, double desvio_padrao) {
+    static double spare;
+    static bool hasSpare = false;
+
+    if (hasSpare) {
+        hasSpare = false;
+        return spare * desvio_padrao + media;
+    } else {
+        double u, v, s;
+        do {
+            u = (rand() / ((double)RAND_MAX)) * 2.0 - 1.0;
+            v = (rand() / ((double)RAND_MAX)) * 2.0 - 1.0;
+            s = u * u + v * v;
+        } while (s >= 1.0 || s == 0.0);
+        s = sqrt(-2.0 * log(s) / s);
+        spare = v * s;
+        hasSpare = true;
+        return media + desvio_padrao * u * s;
+    }
+}
 
 /*
 * Implementação das Estratégias Evolucionárias (ES)
 * Aplica a mutação auto-adaptável das Estratégias Evolucionárias.
 * O processo ocorre em duas etapas:
-* 1. Muta-se o parâmetro de estratégia 'sigma', que controla a intensidade da mutação.
+* 1. Muta-se o parâmetro de estratégia 'sigma', que controla a intensidade dos passos da mutação.
 * 2. Usa-se o novo 'sigma' para decidir se a mutação no percurso ocorrerá.
 * Isto permite que o algoritmo aprenda autonomamente a melhor forma de mutar.
 *
@@ -305,35 +277,69 @@ void inicializaCentro(INDIVIDUO *populacao)
 INDIVIDUO mutacaoES(INDIVIDUO filho){
     INDIVIDUO individuo_mutado = filho;
 
-    // Fatores recomendados para a auto-adaptação do sigma
-    double tau = 1.0 / sqrt(2.0 * TABULEIRO);
+    // valor de τ (tau) fixo de 1/ raiz de n
+    double tau = 1.0 / sqrt(TABULEIRO);
     double epsilon = 0.0001; // Valor mínimo para o sigma, para evitar que a evolução pare
 
-    // 1. MUTAÇÃO DA ESTRATÉGIA: Muta o valor de sigma
+    // MUTAÇÃO DA ESTRATÉGIA: Muta o valor de sigma
     // A fórmula σ' = σ ⋅ exp(τ ⋅ N(0,1)) faz com que o sigma evolua.
-    individuo_mutado.sigma = individuo_mutado.sigma * exp(tau * gerarNumeroGaussiano());
+    individuo_mutado.sigma = individuo_mutado.sigma * exp(tau * gerarGaussiano(0,1));
 
     // Garante que o sigma não se torne pequeno demais a ponto de parar a busca
     if (individuo_mutado.sigma < epsilon) {
         individuo_mutado.sigma = epsilon;
     }
 
-    // 2. MUTAÇÃO DA SOLUÇÃO: Usa o novo sigma para mutar o percurso.
-    // A ideia é que um sigma maior aumenta a chance de uma mutação.
-    
-    double probabilidade_mutacao = tanh(individuo_mutado.sigma);
-    double r = (double)rand() / RAND_MAX;
-
-    if (r < probabilidade_mutacao) {
-        int aux = 0;
+    // Diz o passo da mutação, queremos um valor positivo
+    int passo = 1 + floor(fabs(individuo_mutado.sigma));
+    for (size_t i = 0; i < passo; i++)
+    {   int aux = 0;
         do {
             aux = gerarNumAleatorio(TABULEIRO);
         } while (aux == 0 || aux == TABULEIRO - 1);
-        // Usa a mesma lógica da 'mutacaoVizinhos' original
+        // Usa a mesma lógica da 'mutacaoVizinhos' original aplicando n vezes do passo obtido
         individuo_mutado.tour[aux + 1] = vetorMovimentos(individuo_mutado.tour[aux]);
     }
 
     return individuo_mutado;
+        
+
+/* Função: mutacao
+
+    Altera o gene (número de casa) de uma frase filho (cópia), 
+	substituindo-o por um número de 1 a NxN.
+
+	Parâmetros:
+		filho - Um dos indivíduos da população.
+		
+	Retorno: 
+		O indivíduo da população após ser mutado.
+*/
+INDIVIDUO mutacao(INDIVIDUO filho){ 
+	INDIVIDUO individuo = filho;
+	
+	int r = gerarNumAleatorio(100);
+	if(r <= MUTACAO);
+		individuo.tour[gerarNumAleatorio(TABULEIRO)] = rand() % TABULEIRO + 1;
+
+	return individuo;
+}
+
+/* Função: mutacaoVizinhos... (não está sendo usada)*/
+INDIVIDUO mutacaoVizinhos(INDIVIDUO filho){ 
+	INDIVIDUO individuo = filho;
+	
+	int r = gerarNumAleatorio(100);
+	if(r <= MUTACAO){
+		int aux = 0;
+		do{
+			aux = gerarNumAleatorio(TABULEIRO);
+		}while(aux == 0 || aux == TABULEIRO-1);
+		individuo.tour[aux+1] = vetorMovimentos(individuo.tour[aux]);
+	}
+	return individuo;
+}
+    
 }
 
 INDIVIDUO selecaoPorTorneio(INDIVIDUO *populacao){
@@ -441,12 +447,12 @@ INDIVIDUO reproducao(INDIVIDUO *populacao, int geracao){
         INDIVIDUO pai_mutado = mutacaoES(pai);
         INDIVIDUO mae_mutada = mutacaoES(mae);
 
-        // 2. Recombina-se os pais JÁ MUTADOS
+        // Recombina-se os pais JÁ MUTADOS
 		filho = recombinacaoUniforme(pai_mutado, mae_mutada);
 		
-		// ALTERAÇÃO - INÍCIO: Substituição da mutação original pela mutação auto-adaptável das ES
+		// ALTERAÇÃO - Substituição da mutação original pela mutação auto-adaptável das ES que usa a mutaçao do vizinho
 		// As funções de mutação originais ('mutacao' e 'mutacaoVizinhos') não são usadas mais
-		// para dar lugar à nova abordagem ES, que permite ao algoritmo aprender a mutar.
+		// para dar lugar à nova abordagem ES, que permite ao algoritmo aprender a mutar seus passos.
 		// filho = mutacao(filho);
 		// filho = mutacaoVizinhos(filho);
 		// filho = mutacaoES(filho); // Chamada para a nova função de mutação baseada em ES
