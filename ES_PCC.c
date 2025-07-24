@@ -5,7 +5,7 @@
 #include <time.h>
 #include <math.h>
 
-#define TABULEIRO 100 // Número de casas do tabuleiro (NxN)
+#define TABULEIRO 400 // Número de casas do tabuleiro (NxN)
 typedef struct{
 	int fitness; // Tamanho do maior percurso válido
 	int tour[TABULEIRO]; // Percurso do cavalo
