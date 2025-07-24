@@ -9,17 +9,26 @@
 typedef struct{
 	int fitness; // Tamanho do maior percurso válido
 	int tour[TABULEIRO]; // Percurso do cavalo
-	double sigma; // Parâmetro de estratégia (sigma) das ES, Cada indivíduo agora carrega sua própria "taxa de mutação", que evolui junto com ele.
 }INDIVIDUO;
 
-#define ELITISMO 10
-#define GERACOES 1000
+#define MUTACAO 15
+#define ELITISMO 10  
+#define GERACOES 10000
 #define POPULACAO 1000
 #define TORNEIO 3
-#define MUTACAO 15 // vai da lugar para o sigma do tuor
-#define RESETE n // Vai dizer quanto em cada geração nosso sigma vai adotar ... vai ser implementado ainda.
 
-/* Função: escreveRelatorio ... */
+/* Função: escreveRelatorio
+
+   Escreve no arquivo resultados.txt o tempo para execução
+   do programa e o fitness do melhor indivíduo obtido.
+
+	Parâmetros:
+		tempo - Tempo gasto para execução do programa.
+		fitness - Tamanho do maior percurso válido.
+	
+	Retorno: 
+		Nulo.
+*/
 void escreveRelatorio(double tempo, int fitness, int geracao){
 	FILE *arq, *binario;
 	arq = fopen("resultados.txt", "a");
@@ -30,9 +39,10 @@ void escreveRelatorio(double tempo, int fitness, int geracao){
 		return;
 	}
 
+	//Gravando os dados no arquivo usando a função fwrite
 	fwrite (&geracao, sizeof(int), 1, binario);
- 	fwrite (&tempo, sizeof(double), 1, binario);
- 	fwrite (&fitness, sizeof(int), 1, binario);
+  	fwrite (&tempo, sizeof(double), 1, binario);
+  	fwrite (&fitness, sizeof(int), 1, binario);
 	
 	int result = fprintf(arq, "%d&%.3lf&%d\n",geracao, tempo, fitness);
 	if(result == EOF)
@@ -41,26 +51,71 @@ void escreveRelatorio(double tempo, int fitness, int geracao){
 	fclose(binario);
 }
 
+/* Função: gerarNumAleatorio
 
-/* Função: gerarNumAleatorio ...*/
+   Gera um número aleatório no intervalo de 0 a N-1.
+
+	Parâmetros:
+		n - Intervalo.
+		
+	Retorno: 
+		Um número inteiro aleatório.
+	
+	Confira o seguinte link para mais informações sobre a função rand()
+		https://c-faq.com/lib/randrange.html
+*/
 int gerarNumAleatorio(int N)
 {
 	int r = (int)(N * rand() / RAND_MAX);
 	return r;
 }
 
-/* Funções de coordenadas, validação e movimento ...*/
+/* Função: coordenadas
+
+   	Dado um número de casa, calcula as coordenadas X e Y correspondentes.
+
+	Parâmetros:
+		numeroCasa - número de uma casa do tabuleiro.
+		*X - ponteiro para coordenada X.
+		*Y - ponteiro para coordenada Y.
+		
+	Retorno: 
+		Nulo.
+*/
 void coordenadas(int numeroCasa, int *X, int *Y){
 	int N = sqrt(TABULEIRO);
 	*X = (numeroCasa-1)/N+1;
 	*Y = (numeroCasa-1)%N+1;
 }
 
+/* Função: posicaoValida
+
+   	Verifica se uma posição é valida, ou seja, se as coordenadas estão
+	delimitadas pelas dimensões do tabuleiro.
+
+	Parâmetros:
+		X - coordenada X.
+		Y - coordenada Y.
+		
+	Retorno: 
+		True se for uma posição válida e false caso não.
+*/
 bool posicaoValida(int X, int Y){
 	int N = sqrt(TABULEIRO);
 	return (X >= 1 && X <= N && Y >= 1 && Y <= N);
 }
 
+/* Função: vizinhoValido
+
+   	Verifica se uma casa (i+1) é um vizinho válido da anterior (i).
+
+	Parâmetros:
+		atual - número de casa na posição i.
+		proximo - número de casa na posição i+1.
+		
+	Retorno: 
+		True se for um vizinho válido e false caso não.
+*/
 bool vizinhoValido(int atual, int proximo){
 	int X = 0, Y = 0, proximoX = 0, proximoY = 0, validoX = 0, validoY = 0;
 	coordenadas(atual, &X, &Y);
@@ -72,13 +127,36 @@ bool vizinhoValido(int atual, int proximo){
 	return (validoX == 1 && validoY == 2) || (validoX == 2 && validoY == 1);
 }
 
+/* Função: numeroCasa
+
+   	Dado as coordenadas X e Y retorna o número de casa correspondente.
+
+	Parâmetros:
+		X - coordenada X.
+		Y - coordenada Y.
+		
+	Retorno: 
+		Número de casa.
+*/
 int numeroCasa(int X, int Y){
 	int N = sqrt(TABULEIRO);
 	int numeroCasa = (Y - 1) * N + X;
-	return numeroCasa;
+	return numeroCasa; 
 }
 
+/* Função: movimentosPossiveis
+
+   	Calcula o número de movimentos possíveis a partir de uma casa.
+
+	Parâmetros:
+		X - coordenada X.
+		Y - coordenada Y.
+		
+	Retorno: 
+		Número máximo de movimentos possíveis.
+*/
 int movimentosPossiveis(int X, int Y) {
+	// Define os movimentos possíveis do cavalo
 	int eixoX[] = {2, 1, -1, -2, -2, -1, 1, 2};
 	int eixoY[] = {1, 2, 2, 1, -1, -2, -2, -1};
 	int contador = 0;
@@ -86,7 +164,7 @@ int movimentosPossiveis(int X, int Y) {
 	for (int i = 0; i < 8; i++) {
 		int proximoX = X + eixoX[i];
 		int proximoY = Y + eixoY[i];
-		if (posicaoValida(proximoX, proximoY))
+		if (posicaoValida(proximoX, proximoY)) 
 			contador++;
 	}
 
@@ -133,12 +211,25 @@ int regraWarnsdorff(int casa, bool visitadas[TABULEIRO+1]){
 	return valorF;
 }
 
+/* Função: proximoMovimento
+
+   	Dado um número de casa o seu vizinho válido é calculado.
+
+	Parâmetros:
+		casa - número de casa.
+		visitadas - vetor booleano com número das casas visitadas.
+		
+	Retorno: 
+		Vizinho válido.
+*/
 int proximoMovimento(int casa, bool visitadas[TABULEIRO+1]) {
 	int X = 0, Y = 0;
 	coordenadas(casa, &X, &Y);
+	// Define os movimentos possíveis do cavalo
 	int eixoX[] = {2, 1, -1, -2, -2, -1, 1, 2};
 	int eixoY[] = {1, 2, 2, 1, -1, -2, -2, -1};
-	int minMovimentos = 9, valor = 0;
+	// Inicializado com um valor acima do possível (8).
+	int minMovimentos = 9, valor = 0; 
 
 	for(int i = 0; i < 8; i++) {
 		int auxX = X + eixoX[i];
@@ -152,7 +243,17 @@ int proximoMovimento(int casa, bool visitadas[TABULEIRO+1]) {
 	return valor;
 }
 
-/* Função: fitness ...*/
+/* Função: fitness
+
+    Calcula o fitness de um indivíduo a partir da primeira posição do 
+	vetor, considerando o número de movimentos válidos.
+
+	Parâmetros:
+		copia - Indivíduo.
+		
+	Retorno: 
+		Um número inteiro que representa o fitness do indivíduo.
+*/
 INDIVIDUO fitness(INDIVIDUO copia){
 	INDIVIDUO adaptado = copia;
 	bool visitadas[TABULEIRO + 1] = {false};
@@ -169,8 +270,9 @@ INDIVIDUO fitness(INDIVIDUO copia){
 			contador++;
 		}
 		else{
+			//proximo = proximoMovimento(casa, visitadas);
 			proximo = regraWarnsdorff(casa, visitadas);
-			if(proximo == 0)
+			if(proximo == 0) 
 				break;
 
 			adaptado.tour[i+1] = proximo;
@@ -184,14 +286,24 @@ INDIVIDUO fitness(INDIVIDUO copia){
 	return adaptado;
 }
 
-/* Função: vetorMovimentos ...*/
+/* Função: proximoMovimento
+
+   	Dado um número de casa os seus vizinhos válidos são calculados e
+	armazenados em um vetor. A função sorteia um desses valores e o retorna.
+
+	Parâmetros:
+		casa - número de casa.
+		
+	Retorno: 
+		Vizinho válido.
+*/
 int vetorMovimentos(int casa) {
 	int X = 0, Y = 0;
 	coordenadas(casa, &X, &Y);
 
 	int eixoX[] = {2, 1, -1, -2, -2, -1, 1, 2};
 	int eixoY[] = {1, 2, 2, 1, -1, -2, -2, -1};
-	int minMovimentos = 9, movimentos[9] = {0}, j = 0;
+	int minMovimentos = 9, movimentos[9] = {0}, j = 0; 
 
 	for(int i = 0; i < 8; i++) {
 		int auxX = X + eixoX[i];
@@ -208,7 +320,45 @@ int vetorMovimentos(int casa) {
 	return valor;
 }
 
-/* Função: inicializaCentro ...*/
+/* Função: inicializa
+
+    Inicializa aleatóriamente a POPULAÇÃO de INDIVÍDUOS.
+
+	Parâmetros:
+		população - sequência do tipo INDIVIDUO de tamanho POPULAÇÃO.
+		
+	Retorno: 
+		Nulo.
+*/
+void inicializa(INDIVIDUO * populacao){
+	for(int i = 0; i < POPULACAO; i++){
+		for(int j = 0; j < TABULEIRO; j++)
+			populacao[i].tour[j] = j;
+	}
+	
+	for(int i = 0; i < POPULACAO; i++){
+		for(int j = 0; j < TABULEIRO; j++){
+			int pos = gerarNumAleatorio(TABULEIRO);
+			int temp = populacao[i].tour[j];
+			populacao[i].tour[j] = populacao[i].tour[pos];
+			populacao[i].tour[pos] = temp;
+		}
+		populacao[i] = fitness(populacao[i]);	
+	}
+}
+
+/* Função: inicializaCentro
+
+    Inicializa aleatóriamente a POPULAÇÃO de INDIVÍDUOS, com a exceção 
+	da primeira posição do cromossomo dos INDIVÍDUOS que armazena o
+	número de uma casa central.
+
+	Parâmetros:
+		população - sequência do tipo INDIVIDUO de tamanho POPULAÇÃO.
+		
+	Retorno: 
+		Nulo.
+*/
 void inicializaCentro(INDIVIDUO *populacao)
 {
 	int meio = 0, N = sqrt(TABULEIRO);
@@ -227,82 +377,9 @@ void inicializaCentro(INDIVIDUO *populacao)
 			populacao[i].tour[j] = populacao[i].tour[pos];
 			populacao[i].tour[pos] = temp;
 		}
-		//...Inicializa o parâmetro de estratégia sigma para cada indivíduo
-		populacao[i].sigma = 1.0; // Valor inicial padrão para a estratégia de mutação
 		populacao[i] = fitness(populacao[i]);	
 	}
 }
-
-/*
-* Implementação das Estratégias Evolucionárias (ES)
-* Gera um número aleatório seguindo uma distribuição normal (Gaussiana)
-* com média 0 e desvio padrão 1, Método polar de Marsaglia
-* Link  referência: https://en.wikipedia.org/wiki/Marsaglia_polar_method
-*/
-double gerarGaussiano(double media, double desvio_padrao) {
-    static double spare;
-    static bool hasSpare = false;
-
-    if (hasSpare) {
-        hasSpare = false;
-        return spare * desvio_padrao + media;
-    } else {
-        double u, v, s;
-        do {
-            u = (rand() / ((double)RAND_MAX)) * 2.0 - 1.0;
-            v = (rand() / ((double)RAND_MAX)) * 2.0 - 1.0;
-            s = u * u + v * v;
-        } while (s >= 1.0 || s == 0.0);
-        s = sqrt(-2.0 * log(s) / s);
-        spare = v * s;
-        hasSpare = true;
-        return media + desvio_padrao * u * s;
-    }
-}
-
-/*
-* Implementação das Estratégias Evolucionárias (ES)
-* Aplica a mutação auto-adaptável das Estratégias Evolucionárias.
-* O processo ocorre em duas etapas:
-* 1. Muta-se o parâmetro de estratégia 'sigma', que controla a intensidade dos passos da mutação.
-* 2. Usa-se o novo 'sigma' para decidir se a mutação no percurso ocorrerá.
-* Isto permite que o algoritmo aprenda autonomamente a melhor forma de mutar.
-*
-* Parâmetros:
-* filho - O indivíduo a ser mutado.
-*
-* Retorno:
-* O indivíduo após a tentativa de mutação.
-*/
-INDIVIDUO mutacaoES(INDIVIDUO filho){
-    INDIVIDUO individuo_mutado = filho;
-
-    // valor de τ (tau) fixo de 1/ raiz de n
-    double tau = 1.0 / sqrt(TABULEIRO);
-    double epsilon = 0.0001; // Valor mínimo para o sigma, para evitar que a evolução pare
-
-    // MUTAÇÃO DA ESTRATÉGIA: Muta o valor de sigma
-    // A fórmula σ' = σ ⋅ exp(τ ⋅ N(0,1)) faz com que o sigma evolua.
-    individuo_mutado.sigma = individuo_mutado.sigma * exp(tau * gerarGaussiano(0,1));
-
-    // Garante que o sigma não se torne pequeno demais a ponto de parar a busca
-    if (individuo_mutado.sigma < epsilon) {
-        individuo_mutado.sigma = epsilon;
-    }
-
-    // Diz o passo da mutação, queremos um valor positivo
-    int passo = 1 + floor(fabs(individuo_mutado.sigma));
-    for (size_t i = 0; i < passo; i++)
-    {   int aux = 0;
-        do {
-            aux = gerarNumAleatorio(TABULEIRO);
-        } while (aux == 0 || aux == TABULEIRO - 1);
-        // Usa a mesma lógica da 'mutacaoVizinhos' original aplicando n vezes do passo obtido
-        individuo_mutado.tour[aux + 1] = vetorMovimentos(individuo_mutado.tour[aux]);
-    }
-
-    return individuo_mutado;
-        
 
 /* Função: mutacao
 
@@ -325,7 +402,17 @@ INDIVIDUO mutacao(INDIVIDUO filho){
 	return individuo;
 }
 
-/* Função: mutacaoVizinhos... (não está sendo usada)*/
+/* Função: mutacaoVizinhos
+
+    Altera o gene 'g+1' (número de casa) de uma frase filho (cópia), 
+	substituindo-o por um vizinho válido de 'g'.
+
+	Parâmetros:
+		filho - Um dos indivíduos da população.
+		
+	Retorno: 
+		O indivíduo da população após ser mutado.
+*/
 INDIVIDUO mutacaoVizinhos(INDIVIDUO filho){ 
 	INDIVIDUO individuo = filho;
 	
@@ -339,9 +426,20 @@ INDIVIDUO mutacaoVizinhos(INDIVIDUO filho){
 	}
 	return individuo;
 }
-    
-}
 
+/* Função: selecaoPorTorneio
+
+    Enquanto o torneio entre N indivíduos não terminar
+	seleciona dois a dois e determina qual deles
+	possui o maior fitness.
+
+	Parâmetros:
+		populacao - população de indivíduos (frases cópias).
+		parametros - PARAMETROS.
+		
+	Retorno: 
+		O indivíduo com menor fitness ontido pelo torneio.
+*/
 INDIVIDUO selecaoPorTorneio(INDIVIDUO *populacao){
 	INDIVIDUO melhor;
 	melhor.fitness = -1;
@@ -395,7 +493,18 @@ INDIVIDUO torneioDosDissimilares(INDIVIDUO *populacao, bool flag){
 	return melhor;
 }
 
+/* Função: recombinacaoUniforme
 
+    Combina aleatóriamente os genes do pai e mãe
+	no filho.
+
+	Parâmetros:
+		pai - Um dos indivíduos da população.
+		mae - Um dos indivíduos da população.
+		
+	Retorno: 
+		O indivíduo filho resultante da combinação do pai e mãe.
+*/
 INDIVIDUO recombinacaoUniforme(INDIVIDUO pai, INDIVIDUO mae){
 	INDIVIDUO filho;
 
@@ -405,17 +514,21 @@ INDIVIDUO recombinacaoUniforme(INDIVIDUO pai, INDIVIDUO mae){
 		else
 			filho.tour[i] = mae.tour[i];
 	}
-
-	// Aplica recombinação intermediária para o parâmetro sigma
-	// O filho herda a média da estratégia de mutação (sigma) dos pais.
-	// Isso permite que boas estratégias de busca sejam combinadas e passadas adiante.
-	filho.sigma = (pai.sigma + mae.sigma) / 2.0;
-
 	return filho;
 }
 
+/* Função: comparacaoIndividuos
 
-/* Função: comparacao ... */
+    Usada para execução do qsort, esta função recebe dois INDIVIDUO
+	e os compara determinando qual deles possui maior fitness.
+
+	Parâmetros:
+		A - indivíduo.
+		B - indivíduo.
+		
+	Retorno: 
+		Se A é menor que B, ou o contrário.
+*/
 int comparacao(const void* A, const void* B){
 	INDIVIDUO C = *(INDIVIDUO*)A;
 	INDIVIDUO D = *(INDIVIDUO*)B;
@@ -423,15 +536,37 @@ int comparacao(const void* A, const void* B){
 	else return -1;
 }
 
-/* Função: elitismo ... */
+/* Função: elitismo
+
+    Calcula o número de indivíduos da população que
+	não sofreram a ação dos operadores recombinação e mutação
+	na função reproducao. Em seguida chama a função de ordenação
+	qsort, os indivíduos mais adaptados ocupam as posições iniciais.
+
+	Parâmetros:
+		populacao - População de indivíduos (frases cópias).
+		
+	Retorno: 
+		Número de indivíduos selecionados.
+*/
 int elitismo(INDIVIDUO *populacao){
 	int selecionados = POPULACAO*ELITISMO/100;
 	qsort(populacao, POPULACAO, sizeof(populacao[0]), comparacao);
 	return selecionados;
 }
 
+/* Função: reproducao
 
-/* Função: reproducao ... */
+	Aplica as funções de elitismo, torneio, recombinação, mutação,
+	retornando uma nova população.
+
+	Parâmetros:
+		populacao - População de indivíduos (frases cópias).
+		geracoes - Número de gerações executadas.
+
+	Retorno: 
+		Melhor indivíduo da população.
+*/
 INDIVIDUO reproducao(INDIVIDUO *populacao, int geracao){
 	INDIVIDUO *novaPopulacao, melhor, pai, mae, filho;
 	novaPopulacao = (INDIVIDUO *)malloc(POPULACAO * sizeof(INDIVIDUO));
@@ -440,23 +575,15 @@ INDIVIDUO reproducao(INDIVIDUO *populacao, int geracao){
 	melhor = populacao[0];
 
 	for(int i = 0; i < POPULACAO-taxaDeElitismo; i++){
+		//pai = selecaoPorTorneio(populacao);
+		//mae = selecaoPorTorneio(populacao);
+
 		pai = torneioDosDissimilares(populacao, true);
 		mae = torneioDosDissimilares(populacao, false);
 
-          // 1. Muta-se cada pai individualmente
-        INDIVIDUO pai_mutado = mutacaoES(pai);
-        INDIVIDUO mae_mutada = mutacaoES(mae);
-
-        // Recombina-se os pais JÁ MUTADOS
-		filho = recombinacaoUniforme(pai_mutado, mae_mutada);
-		
-		// ALTERAÇÃO - Substituição da mutação original pela mutação auto-adaptável das ES que usa a mutaçao do vizinho
-		// As funções de mutação originais ('mutacao' e 'mutacaoVizinhos') não são usadas mais
-		// para dar lugar à nova abordagem ES, que permite ao algoritmo aprender a mutar seus passos.
-		// filho = mutacao(filho);
-		// filho = mutacaoVizinhos(filho);
-		// filho = mutacaoES(filho); // Chamada para a nova função de mutação baseada em ES
-
+		filho = recombinacaoUniforme(pai, mae);
+		//filho = mutacao(filho);
+		filho = mutacaoVizinhos(filho);
 		filho = fitness(filho);
 
 		if(filho.fitness > melhor.fitness)
@@ -472,28 +599,39 @@ INDIVIDUO reproducao(INDIVIDUO *populacao, int geracao){
 	return melhor;
 }
 
- /* Função: imprimir melhor individuo da população, e a geração que foi ... */ 
-void imprimirMelhorIndividuo(INDIVIDUO *populacao, int geracao) {
-    // Laço principal que percorre cada indivíduo do array 'populacao'
-    for (int i = 0; i < POPULACAO; i++) {
-        // Imprimir o percurso (tour) e o sigma
-         if (populacao[i].fitness == (TABULEIRO-1)) {
-            printf("-----------------------------");
-            printf("\nIndividuo %d da Geracao %d", i, geracao);
-            printf("\nFitness: %d\n", populacao[i].fitness);
-            printf("Sigma: %f\n", populacao[i].sigma);
-            printf("Tour: ");
-            for (int j = 0; j < TABULEIRO; j++) {
-                // Acessamos cada casa do percurso do indivíduo atual
-                printf("%d ", populacao[i].tour[j]);
-            
-            }
-            return 0;
-        }
-    }
+/* Função: verifica
+
+	Verifica se o tour do INDIVÍDUO é valido.
+
+	Parâmetros:
+		copia - INDIVÍDUO da população.
+
+	Retorno: 
+		Nulo.
+*/
+void verifica(INDIVIDUO copia){
+	bool visitadas[TABULEIRO+1] = {false};
+
+	for(int i = 0; i < TABULEIRO; i++){
+		if(visitadas[copia.tour[i]] == true){
+			printf("TTTTTTT");
+			return;
+		}
+		visitadas[copia.tour[i]] = true;
+	}
+	for(int i = 0; i < TABULEIRO-1; i++){
+		if(!vizinhoValido(copia.tour[i], copia.tour[i+1])){
+			printf("TTTTTTT");
+			return;
+		}
+		visitadas[copia.tour[i]] = true;
+	}
 }
 
-/* Função: AE ... */
+/* Função: AE	
+
+	Implementa o Algoritmo Evolutivo para o problema do Percurso do Cavalo.
+*/
 void AE()
 {
 	clock_t inicio, fim;
@@ -506,12 +644,12 @@ void AE()
 
 	srand(time(NULL));
 	inicializaCentro(populacao);
-    // inicializa(populacao);
 
 	for(geracao = 1; geracao <= GERACOES; geracao++){
 		melhor = reproducao(populacao, geracao);
 		printf("\nIteracao %d, melhor fitness %d.\n", geracao, melhor.fitness);
-		if(melhor.fitness == TABULEIRO-1)
+		
+		if(melhor.fitness == TABULEIRO-1) 
 			break;
 	}
 
@@ -519,17 +657,14 @@ void AE()
 
 	fim = clock();
 	total = (double)(fim-inicio)/CLOCKS_PER_SEC;
-    // imprimirMelhorIndividuo(populacao, geracao);
-     printf("\n-----------------------------");
-	printf("\nTempo total gasto pela CPU: %lf\n", total);
-	// escreveRelatorio(total,melhor.fitness, geracao);
+	printf("Tempo total gasto pela CPU: %lf\n", total);
+	escreveRelatorio(total,melhor.fitness, geracao);
 	free(populacao);
 }
 
-/* Função: main ...*/
 int main(void){
 
-	// for(int i = 0; i < 10; i++)
+	//for(int i = 0; i < 10; i++)
 		AE();
 	
 	return 0;
