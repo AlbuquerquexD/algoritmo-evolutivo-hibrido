@@ -38,11 +38,19 @@ Este projeto foi **inspirado em um artigo científico sobre aplicação de algor
 - Representação baseada em permutação de casas  
 - Lógica de movimento do cavalo
 
-## 📁 Organização
+# 🧪 Como Reproduzir o Projeto
 
-- `main.c` – Função principal e controle do fluxo evolutivo  
-- `reproducao.c` – Lógica do modelo (μ+λ)-ES  
-- `utils.c` – Funções auxiliares (mutação, validação de movimentos, etc.)  
+Este guia descreve o passo a passo para compilar e executar o projeto do **Problema do Percurso do Cavalo (PPC)** utilizando **Estratégias Evolucionárias (ES)**.
+
+---
+
+## ✅ Pré-requisitos
+
+### 1. Instalar Compilador C
+  - Baixe o MinGW
+### Estrutura dos Arquivos
+  - ppc.c → Código-fonte original (sem ES)
+  - ES_PPC.c → Código com Estratégia Evolucionária (μ+λ)-ES implementada
 
 ## 📈 Resultados
 
@@ -52,6 +60,6 @@ Este projeto foi **inspirado em um artigo científico sobre aplicação de algor
 
 **Antony Albuquerque**  
 Estudante de Bacharelado em Sistemas de Informação- UFRPE
-Projeto acadêmico – 2025
+Projeto acadêmico para Disciplina: Tópicos Avançados em Inteligência Artificial – 2025
 
 ---
